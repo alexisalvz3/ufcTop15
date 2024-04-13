@@ -3,6 +3,7 @@
 //  ufcTop15
 //
 //  Created by alexis alvarez on 4/12/24.
+//  CSC680 project
 //
 
 import SwiftUI
