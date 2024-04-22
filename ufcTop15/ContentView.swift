@@ -1,62 +1,84 @@
-//
-//  ContentView.swift
-//  ufcTop15
-//
-//  Created by alexis alvarez on 4/12/24.
-//  CSC680 project
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @State private var selectedWeightClass = WeightClass.default
+    @State private var fighters: [Fighter] = []
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+        VStack {
+            Picker("Select Weight Class", selection: $selectedWeightClass) {
+                ForEach(WeightClass.allCases, id: \.self) { weightClass in
+                    Text(weightClass.rawValue)
                 }
             }
-        } detail: {
-            Text("Select an item")
+            .pickerStyle(MenuPickerStyle())
+            .padding()
+            
+            List(fighters, id: \.id) { fighter in
+                FighterView(fighter: fighter)
+            }
+        }
+        .onAppear() {
+            fetchFighters()
+        }
+        .onChange(of: selectedWeightClass) { newValue in
+            fetchFighters()
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+    func fetchFighters() {
+        guard let csvURL = Bundle.main.url(forResource: "rankings_history", withExtension: "csv") else {
+            return
+        }
+
+        do {
+            let csvData = try String(contentsOf: csvURL)
+            let parsedData = parseCSV(csvData)
+            let filteredFighters = filterFighters(parsedData)
+            fighters = filteredFighters
+        } catch {
+            print("Error reading CSV file: \(error)")
         }
     }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+    func parseCSV(_ csvData: String) -> [Fighter] {
+        var fighters: [Fighter] = []
+
+        let rows = csvData.components(separatedBy: "\n")
+        for row in rows {
+            let columns = row.components(separatedBy: ",")
+            if columns.count == 4 {
+                let date = columns[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                let weightClass = columns[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                let fighter = columns[2].trimmingCharacters(in: .whitespacesAndNewlines)
+                let rank = columns[3].trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if date == "2024-03-05" {
+                    if let weightClass = WeightClass(rawValue: weightClass) {
+                        if let rank = Int(rank) {
+                            let fighter = Fighter(fighter: fighter, rank: rank, weightClass: weightClass)
+                                fighters.append(fighter)
+                        }
+                    } else {
+                        print("Invalid weight class: \(weightClass)")
+                    }
+                }
             }
         }
+
+        return fighters
+    }
+
+
+    func filterFighters(_ fighters: [Fighter]) -> [Fighter] {
+        // Filter fighters based on selected weight class and the most recent date
+        // Return the filtered array of Fighter objects
+        return fighters.filter { $0.weightClass == selectedWeightClass }
     }
 }
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }
