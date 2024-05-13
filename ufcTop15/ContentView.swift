@@ -6,6 +6,7 @@ struct ContentView: View {
 
     var body: some View {
         VStack {
+            // picker that holds each weight class and men's and women's pound for pound rankings
             Picker("Select Weight Class", selection: $selectedWeightClass) {
                 ForEach(WeightClass.allCases, id: \.self) { weightClass in
                     Text(weightClass.rawValue)
@@ -13,7 +14,7 @@ struct ContentView: View {
             }
             .pickerStyle(MenuPickerStyle())
             .padding()
-            
+            // display list of top 15 fighters for picked weight class
             List(fighters, id: \.id) { fighter in
                 FighterView(fighter: fighter)
             }
@@ -21,12 +22,14 @@ struct ContentView: View {
         .onAppear() {
             fetchFighters()
         }
+        // re-render page after new weight class is picked
         .onChange(of: selectedWeightClass) { newValue in
             fetchFighters()
         }
     }
-
+    // function that fetches top 15 fighters data from csv file
     func fetchFighters() {
+        // creating csv file variable where data is stored
         guard let csvURL = Bundle.main.url(forResource: "rankings_history", withExtension: "csv") else {
             return
         }
@@ -40,11 +43,14 @@ struct ContentView: View {
             print("Error reading CSV file: \(error)")
         }
     }
-
+    
+    // function to parse data from csv file
     func parseCSV(_ csvData: String) -> [Fighter] {
+        // array to hold list of fighters to display in view
         var fighters: [Fighter] = []
 
         let rows = csvData.components(separatedBy: "\n")
+        // parsing data into seperate columns
         for row in rows {
             let columns = row.components(separatedBy: ",")
             if columns.count == 4 {
@@ -52,7 +58,7 @@ struct ContentView: View {
                 let weightClass = columns[1].trimmingCharacters(in: .whitespacesAndNewlines)
                 let fighter = columns[2].trimmingCharacters(in: .whitespacesAndNewlines)
                 let rank = columns[3].trimmingCharacters(in: .whitespacesAndNewlines)
-                
+                // fetch rows from most recent data updated
                 if date == "2024-03-05" {
                     if let weightClass = WeightClass(rawValue: weightClass) {
                         if let rank = Int(rank) {
@@ -65,7 +71,7 @@ struct ContentView: View {
                 }
             }
         }
-
+        // return entire list of fighters with appropriate data based on most recent date
         return fighters
     }
 
